@@ -648,7 +648,8 @@ function deckHTML(){
     parts.push('<button class="btn sm" data-act="restore" title="Push the scores saved in this browser back to the server">' +
       'Restore ' + b2.players.length + ' scores</button>');
   }
-  parts.push(b('reset','Reset','danger'));
+  parts.push(b('reset','Reset scores','danger'));
+  parts.push(b('clearplayers','Empty room','danger'));
 
   const answered = ST.host ? ST.host.answered : 0;
   const pct = ST.playerCount ? (answered / ST.playerCount) * 100 : 0;
@@ -788,7 +789,8 @@ function wire(){
   document.querySelectorAll('[data-act]').forEach(btn => {
     btn.onclick = async () => {
       const act = btn.dataset.act;
-      if (act === 'reset' && !confirm('Reset the game? All scores are cleared and everyone returns to the lobby.')) return;
+      if (act === 'reset' && !confirm('Clear every score and send everyone back to the lobby? Players stay in the room.')) return;
+      if (act === 'clearplayers' && !confirm('Remove every player from the room? They will each need to enter their name again. Use this to clear practice runs before the real game.')) return;
       let body = {};
       if (act === 'addtime') body = { seconds: 30 };
       if (act === 'restore'){
