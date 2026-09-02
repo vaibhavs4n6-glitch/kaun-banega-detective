@@ -446,6 +446,8 @@ function connect(){
   es.addEventListener('state', (ev) => {
     const s = JSON.parse(ev.data);
     if (s.round !== lastRound){ lastRound = s.round; pick = null; }
+    ST = s;
+    saveBackup();
     if (s.phase === 'question'){
       frozenLeft = s.paused ? s.timeLeftMs : null;
       if (!s.paused) localDeadline = Date.now() + s.timeLeftMs;
@@ -469,6 +471,34 @@ function clock(ms){
 }
 
 /* --------------------------------------------------------------- rendering */
+/* The game lives in the server's memory, so a restart would wipe every score.
+   The host console keeps a copy in this browser after each change and offers to
+   push it back if it ever reconnects to an empty game. */
+function backupTotal(b){ return (b && b.players || []).reduce((n, p) => n + scoreOfBackup(p), 0); }
+function scoreOfBackup(p){
+  let s = 0; const a = p.answers || {};
+  for (const k in a) s += a[k].points || 0;
+  return s;
+}
+function readBackup(){
+  try { return JSON.parse(localStorage.getItem('kbd_backup') || 'null'); } catch (_) { return null; }
+}
+function saveBackup(){
+  if (ROLE !== 'host' || !ST || !ST.host) return;
+  const players = ST.host.roster.map(p => ({ name: p.name, answers: p.answers || {} }));
+  if (!players.length) return;
+  try {
+    localStorage.setItem('kbd_backup', JSON.stringify({ savedAt: Date.now(), players }));
+  } catch (_) { /* storage unavailable; the live game is unaffected */ }
+}
+function backupIsBetter(){
+  if (ROLE !== 'host' || !ST || !ST.host) return false;
+  const b = readBackup();
+  if (!b) return false;
+  const live = ST.leaderboard.reduce((n, p) => n + p.score, 0);
+  return backupTotal(b) > live;
+}
+
 function renderChips(){
   if (!ST){ chips.innerHTML = ''; return; }
   const bits = [];
@@ -613,6 +643,11 @@ function deckHTML(){
     parts.push(b('finish','End Game'));
   }
   parts.push('<span class="sep"></span>');
+  if (backupIsBetter()){
+    const b2 = readBackup();
+    parts.push('<button class="btn sm" data-act="restore" title="Push the scores saved in this browser back to the server">' +
+      'Restore ' + b2.players.length + ' scores</button>');
+  }
   parts.push(b('reset','Reset','danger'));
 
   const answered = ST.host ? ST.host.answered : 0;
@@ -754,7 +789,18 @@ function wire(){
     btn.onclick = async () => {
       const act = btn.dataset.act;
       if (act === 'reset' && !confirm('Reset the game? All scores are cleared and everyone returns to the lobby.')) return;
-      try { await api('/api/host/' + act, act === 'addtime' ? { seconds: 30 } : {}); }
+      let body = {};
+      if (act === 'addtime') body = { seconds: 30 };
+      if (act === 'restore'){
+        const b = readBackup();
+        if (!b) return;
+        if (!confirm('Push ' + b.players.length + ' saved scores back to the server?')) return;
+        body = { players: b.players };
+      }
+      try {
+        await api('/api/host/' + act, body);
+        if (act === 'restore') toast('Scores restored.');
+      }
       catch (e) { toast(e.message); }
     };
   });
