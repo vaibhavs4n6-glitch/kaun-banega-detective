@@ -405,20 +405,38 @@ function toast(msg){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('on'), 3200);
 }
-async function api(pathname, body){
-  let r;
-  try {
-    r = await fetch(pathname, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + LS.t },
-      body: JSON.stringify(body || {})
-    });
-  } catch (_) {
-    throw new Error('Cannot reach the server. Check that it is still running and that you opened the address it printed.');
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+/* A sleeping free-tier server answers the first request with a router error
+   before it finishes waking. Those are retried quietly so a cold start looks
+   like a short wait instead of a failure. Real answers from the game (a full
+   room, a wrong password) carry an `error` field and are never retried. */
+const COLD = [404, 500, 502, 503, 504];
+
+async function api(pathname, body, onWait){
+  let lastErr = 'Something went wrong. Try again.';
+  for (let attempt = 0; attempt < 8; attempt++){
+    let r;
+    try {
+      r = await fetch(pathname, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + LS.t },
+        body: JSON.stringify(body || {})
+      });
+    } catch (_) {
+      lastErr = 'Cannot reach the server. Check your connection and try again.';
+      if (onWait) onWait(attempt);
+      await sleep(1500);
+      continue;
+    }
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) return data;
+    if (data.error) throw new Error(data.error);   // a real answer from the game
+    if (!COLD.includes(r.status)) throw new Error(lastErr);
+    if (onWait) onWait(attempt);
+    await sleep(1500);
   }
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || 'Something went wrong. Try again.');
-  return data;
+  throw new Error('The server is still waking up. Wait a moment and try again.');
 }
 
 /* ------------------------------------------------------------------ stream */
@@ -652,8 +670,11 @@ function joinScreen(err){
   nm.focus();
   const submit = async () => {
     const name = nm.value.trim();
+    const btn = document.getElementById('go');
+    btn.disabled = true;
+    btn.textContent = 'Joining…';
     try {
-      const r = await api('/api/join', { name });
+      const r = await api('/api/join', { name }, () => { btn.textContent = 'Waking the server…'; });
       LS.t = r.token; LS.name = r.player.name;
       connect();
     } catch (e) { joinScreen(e.message); }
@@ -677,8 +698,12 @@ function hostScreen(err){
   const id = document.getElementById('hid'), pw = document.getElementById('hpw');
   id.focus();
   const submit = async () => {
+    const btn = document.getElementById('hgo');
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
     try {
-      const r = await api('/api/host/login', { id: id.value.trim(), pass: pw.value.trim() });
+      const r = await api('/api/host/login', { id: id.value.trim(), pass: pw.value.trim() },
+                          () => { btn.textContent = 'Waking the server…'; });
       LS.t = r.token;
       connect();
     } catch (e) { hostScreen(e.message); }
@@ -769,13 +794,18 @@ const gate = () => (ROLE === 'host' ? hostScreen() : joinScreen());
 
 if (LS.t){
   connect();
-  // A token left over from a restarted server falls back to the right gate.
+  // A stored token can outlive a server restart, and a sleeping server can take
+  // several seconds to answer. Wait long enough to tell those apart before
+  // sending anyone back to the sign-in screen.
   setTimeout(() => {
     if (!ST || (ROLE === 'player' && !ST.me) || (ROLE === 'host' && !ST.host)){
       LS.t = '';
       gate();
     }
-  }, 2500);
+  }, 15000);
+  app.innerHTML = '<section class="card hold"><div class="glyph">…</div>' +
+    '<h2>Connecting</h2><p>Reopening your session. This can take up to a minute ' +
+    'if the server has been idle.</p></section>';
 } else {
   gate();
 }
