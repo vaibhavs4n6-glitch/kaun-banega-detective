@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: kaun-banega-detective
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: node server.js
+    envVars:
+      # Set in the Render dashboard, never committed to the repository.
+      - key: HOST_ID
+        sync: false
+      - key: HOST_PASS
+        sync: false
+      - key: MAX_PLAYERS
+        value: "40"
+      - key: TIMER_SECONDS
+        value: "120"
