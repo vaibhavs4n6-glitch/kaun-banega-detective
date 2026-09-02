@@ -8,7 +8,28 @@ Fifteen cases are loaded from `questions.js`, including three crime-scene photog
 
 ---
 
-## 1. Run it
+## 1. The live site
+
+**https://kaun-banega-detective.onrender.com** — players
+**https://kaun-banega-detective.onrender.com/host** — host console
+
+Deployed from the private GitHub repo `vaibhavs4n6-glitch/kaun-banega-detective`.
+Committing a change to that repo redeploys the site automatically.
+
+**The free plan sleeps after 15 minutes of no traffic.** Waking takes up to a
+minute, and while it wakes Render answers with its own "Not Found" page. The
+site now retries through that automatically, so a visitor sees "Waking the
+server…" instead of an error. Two things still follow from it:
+
+- Open the link about ten minutes before the quiz so it is awake when people arrive.
+- **A restart wipes all scores and players**, because the game is held in memory.
+  That will not happen while forty people are actively playing, but it is the one
+  failure that would cost you the leaderboard mid-event. Render's $7/month plan
+  removes sleeping entirely if you want that guarantee.
+
+---
+
+## 2. Run it on your own machine
 
 Node.js 16 or newer is the only requirement. There are no packages to install.
 
@@ -39,7 +60,7 @@ minutes before the event.
 
 ---
 
-## 2. Host console
+## 3. Host console
 
 Open `/host` (for example `http://192.168.1.7:3000/host`) on your own laptop.
 
@@ -87,7 +108,7 @@ Opening `index.html` by double-clicking it will not work; the game only runs thr
 
 ---
 
-## 3. Scoring
+## 4. Scoring
 
 A correct answer scores **1000 points plus a speed bonus of up to 1000**, calculated from
 the time left on the clock. A wrong answer or no answer scores zero. Answers lock on the
@@ -97,7 +118,7 @@ A player who loses connection and rejoins with the same name keeps their score.
 
 ---
 
-## 4. Settings
+## 5. Settings
 
 Environment variables, all optional:
 
@@ -115,7 +136,7 @@ PORT=8080 HOST_ID=Vaibhav4n6 HOST_PASS='Vaibhav@9461' MAX_PLAYERS=40 TIMER_SECON
 
 ---
 
-## 5. Editing the questions
+## 6. Editing the questions
 
 `questions.js` holds all fifteen cases in order. Each entry takes this shape:
 
@@ -140,7 +161,7 @@ To add a new photograph, drop the file into `public/img/` and set `image: 'img/y
 
 ---
 
-## 6. Files
+## 7. Files
 
 ```
 server.js            game logic, live state stream, host authentication

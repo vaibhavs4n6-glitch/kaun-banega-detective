@@ -117,8 +117,23 @@ function questionPayload(full) {
   return base;
 }
 
-function stateFor(role, playerId) {
+/* One broadcast touches every connected screen, so the parts that are identical
+   for everyone (the leaderboard, the question payload) are built once and shared
+   rather than recomputed per client. With 40 players on a small instance this is
+   the difference between 40 sorts per event and one. */
+function shared() {
   const revealed = game.phase === 'reveal' || game.phase === 'leaderboard' || game.phase === 'finished';
+  return {
+    revealed,
+    board: leaderboard(),
+    open: game.phase === 'lobby' ? null : questionPayload(false),
+    keyed: game.phase === 'lobby' ? null : questionPayload(true)
+  };
+}
+
+function stateFor(role, playerId, pre) {
+  const s = pre || shared();
+  const revealed = s.revealed;
   const showKey = role === 'host' || revealed;
   const me = playerId ? players.get(playerId) : null;
   const q = QUESTIONS[game.qIndex];
@@ -134,8 +149,8 @@ function stateFor(role, playerId) {
     paused: game.paused,
     playerCount: players.size,
     maxPlayers: MAX_PLAYERS,
-    question: game.phase === 'lobby' ? null : questionPayload(showKey),
-    leaderboard: leaderboard()
+    question: showKey ? s.keyed : s.open,
+    leaderboard: s.board
   };
 
   if (me) {
@@ -162,7 +177,8 @@ function stateFor(role, playerId) {
         id: p.id,
         name: p.name,
         score: scoreOf(p),
-        answered: !!p.answers[game.qIndex]
+        answered: !!p.answers[game.qIndex],
+        answers: p.answers // lets the host console keep an offline backup
       })),
       questionList: QUESTIONS.map((x, i) => ({ number: i + 1, title: x.title, tag: x.tag })),
       answerKey: q ? q.answer : null
@@ -174,9 +190,9 @@ function stateFor(role, playerId) {
 
 /* -------------------------------------------------------------- broadcast */
 
-function send(client) {
+function send(client, pre) {
   try {
-    const payload = JSON.stringify(stateFor(client.role, client.playerId));
+    const payload = JSON.stringify(stateFor(client.role, client.playerId, pre));
     client.res.write(`event: state\ndata: ${payload}\n\n`);
   } catch (_) {
     /* client gone; cleaned up on close */
@@ -184,7 +200,18 @@ function send(client) {
 }
 
 function broadcast() {
-  for (const c of clients) send(c);
+  if (clients.size === 0) return;
+  const pre = shared();
+  for (const c of clients) send(c, pre);
+}
+
+/* Answers arrive in a burst when 40 people tap at once. Collapsing those into
+   one broadcast per tick keeps the instance from doing the same fan-out 40
+   times in a second. */
+let pending = null;
+function broadcastSoon() {
+  if (pending) return;
+  pending = setTimeout(() => { pending = null; broadcast(); }, 120);
 }
 
 // Heartbeat keeps proxies from closing idle SSE streams and keeps the
@@ -370,7 +397,7 @@ const server = http.createServer(async (req, res) => {
     }
     const t = token();
     playerTokens.set(t, player.id);
-    broadcast();
+    broadcastSoon();
     return json(res, 200, { token: t, role: 'player', player: { id: player.id, name: player.name } });
   }
 
@@ -393,7 +420,7 @@ const server = http.createServer(async (req, res) => {
     const correct = choice === q.answer;
     const points = correct ? 1000 + Math.round(1000 * (left / game.durationMs)) : 0;
     player.answers[game.qIndex] = { choice, msLeft: left, correct, points };
-    broadcast();
+    broadcastSoon();
     return json(res, 200, { ok: true, locked: choice });
   }
 
@@ -470,6 +497,34 @@ const server = http.createServer(async (req, res) => {
       case 'reset':
         resetGame();
         break;
+      case 'restore': {
+        // Rebuilds the roster from the host console's local backup after a
+        // server restart wiped the in-memory game.
+        const list = Array.isArray(body.players) ? body.players : [];
+        for (const entry of list) {
+          const name = String(entry.name || '').trim().slice(0, 28);
+          if (name.length < 2) continue;
+          let found = null;
+          for (const pl of players.values()) if (slug(pl.name) === slug(name)) found = pl;
+          if (!found) {
+            if (players.size >= MAX_PLAYERS) break;
+            found = { id: crypto.randomBytes(8).toString('hex'), name, joinedAt: nowMs(), answers: {} };
+            players.set(found.id, found);
+          }
+          const ans = entry.answers && typeof entry.answers === 'object' ? entry.answers : {};
+          for (const k of Object.keys(ans)) {
+            const a = ans[k];
+            if (!a || typeof a.choice !== 'number') continue;
+            found.answers[k] = {
+              choice: a.choice,
+              msLeft: Number(a.msLeft) || 0,
+              correct: !!a.correct,
+              points: Number(a.points) || 0
+            };
+          }
+        }
+        break;
+      }
       case 'clearplayers':
         players.clear();
         playerTokens.clear();
