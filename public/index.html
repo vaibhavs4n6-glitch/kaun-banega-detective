@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kaun Banega Detective</title>
+<style>
+/* Typefaces are served from this machine, so the game looks the same on a
+   venue Wi-Fi network with no internet access. */
+@font-face{font-family:'Antonio';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/antonio-latin-400-normal.woff2') format('woff2')}
+@font-face{font-family:'Antonio';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/antonio-latin-600-normal.woff2') format('woff2')}
+@font-face{font-family:'Antonio';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/antonio-latin-700-normal.woff2') format('woff2')}
+@font-face{font-family:'Spectral';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/spectral-latin-400-normal.woff2') format('woff2')}
+@font-face{font-family:'Spectral';font-style:italic;font-weight:400;font-display:swap;src:url('fonts/spectral-latin-400-italic.woff2') format('woff2')}
+@font-face{font-family:'Spectral';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/spectral-latin-600-normal.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2')}
+
+:root{
+  --ink:#070B16;
+  --ink-2:#0C1322;
+  --panel:#101A2E;
+  --panel-2:#18243D;
+  --line:#2A3A5C;
+  --line-soft:#1D2941;
+  --gold:#E9B949;
+  --gold-deep:#B98C1F;
+  --luminol:#45CFE6;
+  --ok:#3DC48D;
+  --bad:#E2564D;
+  --txt:#E9EDF7;
+  --muted:#8A97B5;
+  --display:'Antonio','Arial Narrow',Impact,sans-serif;
+  --body:'Spectral',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --r:4px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh;
+  background:
+    radial-gradient(120% 70% at 50% -10%, #16233C 0%, rgba(22,35,60,0) 62%),
+    radial-gradient(80% 50% at 50% 110%, #101B31 0%, rgba(16,27,49,0) 60%),
+    var(--ink);
+  color:var(--txt);
+  font-family:var(--body);
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+input{font:inherit}
+:focus-visible{outline:2px solid var(--luminol);outline-offset:3px}
+
+/* ------------------------------------------------------------ chrome */
+.topbar{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:16px;
+  padding:12px clamp(14px,4vw,32px);
+  background:linear-gradient(180deg,rgba(7,11,22,.96),rgba(7,11,22,.72));
+  border-bottom:1px solid var(--line-soft);
+  backdrop-filter:blur(8px);
+}
+.mark{display:flex;align-items:baseline;gap:8px;min-width:0}
+.mark b{
+  font-family:var(--display);font-weight:700;font-size:clamp(17px,2.4vw,23px);
+  letter-spacing:.055em;text-transform:uppercase;color:var(--gold);white-space:nowrap;
+}
+.mark span{
+  font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap;
+}
+.chips{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.chip{
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);border:1px solid var(--line-soft);border-radius:999px;
+  padding:4px 11px;white-space:nowrap;
+}
+.chip b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
+.chip.live{color:var(--luminol);border-color:rgba(69,207,230,.35)}
+.chip.live::before{
+  content:'';display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--luminol);margin-right:7px;vertical-align:1px;
+  animation:pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+.wrap{max-width:1180px;margin:0 auto;padding:clamp(18px,3vw,34px) clamp(14px,4vw,32px) 96px}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 176px;gap:clamp(18px,3vw,34px);align-items:start}
+@media(max-width:900px){.stage{grid-template-columns:minmax(0,1fr)}.ladder{display:none}}
+
+/* ------------------------------------------------------------ ladder */
+.ladder{
+  position:sticky;top:78px;
+  border:1px solid var(--line-soft);background:rgba(16,26,46,.5);
+  padding:14px 0;
+}
+.ladder h4{
+  margin:0 14px 10px;font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+}
+.rung{
+  display:flex;align-items:center;gap:10px;padding:4px 14px;
+  font-family:var(--mono);font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;
+}
+.rung i{font-style:normal;width:18px;text-align:right;opacity:.6}
+.rung span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.rung.done{color:#5D6B8C}
+.rung.done i{color:var(--ok);opacity:1}
+.rung.now{
+  color:var(--ink);background:linear-gradient(90deg,var(--gold),var(--gold-deep));
+  font-weight:600;
+}
+.rung.now i{color:var(--ink);opacity:1}
+
+/* ------------------------------------------------------------ panels */
+.card{
+  border:1px solid var(--line-soft);
+  background:linear-gradient(180deg,rgba(24,36,61,.72),rgba(14,22,38,.72));
+  padding:clamp(18px,3vw,30px);
+}
+.eyebrow{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:14px;
+}
+.eyebrow .num{
+  color:var(--ink);background:var(--gold);padding:3px 9px;font-weight:600;letter-spacing:.14em;
+}
+.eyebrow .tag{color:var(--luminol)}
+h1.case{
+  font-family:var(--display);font-weight:600;
+  font-size:clamp(27px,4.6vw,44px);line-height:1.04;letter-spacing:.01em;
+  margin:0 0 16px;text-wrap:balance;
+}
+.brief{margin:0 0 6px;max-width:66ch;color:#C6CEE2;font-size:16.5px}
+.brief.stmt{
+  border-left:2px solid var(--line);padding-left:14px;font-style:italic;color:#AFBAD4;
+}
+.prompt{
+  margin:22px 0 4px;font-family:var(--display);font-weight:400;
+  font-size:clamp(19px,2.6vw,26px);line-height:1.25;color:var(--gold);text-wrap:balance;
+}
+.scene{
+  margin:22px auto 4px;border:1px solid var(--line);background:#05080F;
+  width:fit-content;max-width:100%;line-height:0;
+}
+.scene img{display:block;max-width:100%;max-height:min(54vh,560px);width:auto;height:auto}
+
+/* ------------------------------------------------------------ options */
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:24px}
+@media(max-width:700px){.opts{grid-template-columns:1fr}}
+.opt{
+  position:relative;display:flex;align-items:center;gap:14px;width:100%;
+  padding:15px 18px;text-align:left;
+  background:linear-gradient(180deg,#1A2740,#121C31);
+  border:1px solid var(--line);
+  clip-path:polygon(15px 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,0 100%,0 15px);
+  transition:background .18s ease,border-color .18s ease,transform .12s ease;
+}
+.opt:hover:not(:disabled){background:linear-gradient(180deg,#243459,#16223B);border-color:var(--gold-deep)}
+.opt:active:not(:disabled){transform:translateY(1px)}
+.opt:disabled{cursor:default}
+.opt .ltr{
+  flex:none;width:28px;height:28px;display:grid;place-items:center;
+  font-family:var(--display);font-size:17px;font-weight:600;
+  color:var(--gold);border:1px solid var(--gold-deep);border-radius:50%;
+}
+.opt .txt{font-size:15.5px;line-height:1.42;color:#DCE3F2}
+.opt.picked{background:linear-gradient(180deg,#3A3111,#241D06);border-color:var(--gold)}
+.opt.picked .ltr{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+.opt.right{background:linear-gradient(180deg,#0F3B2C,#0A2A20);border-color:var(--ok)}
+.opt.right .ltr{background:var(--ok);color:#062016;border-color:var(--ok)}
+.opt.wrong{background:linear-gradient(180deg,#3B1512,#28100E);border-color:var(--bad)}
+.opt.wrong .ltr{background:var(--bad);color:#280C09;border-color:var(--bad)}
+.opt .flag{
+  margin-left:auto;flex:none;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);
+}
+.opt.right .flag{color:var(--ok)}
+.opt.wrong .flag{color:var(--bad)}
+
+/* ------------------------------------------------------------ timer */
+.timer{display:flex;align-items:center;gap:14px;margin-top:26px}
+.timer .digits{
+  font-family:var(--mono);font-weight:600;font-size:30px;letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;color:var(--txt);min-width:104px;
+}
+.timer.warn .digits{color:var(--gold)}
+.timer.crit .digits{color:var(--bad)}
+.track{flex:1;height:5px;background:var(--line-soft);overflow:hidden}
+.fill{height:100%;width:100%;background:var(--luminol);transition:width .25s linear}
+.timer.warn .fill{background:var(--gold)}
+.timer.crit .fill{background:var(--bad)}
+.timer .note{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* ------------------------------------------------------------ reveal */
+.verdict{
+  margin-top:24px;border:1px solid var(--line);border-left:3px solid var(--luminol);
+  background:rgba(11,22,38,.75);padding:20px 22px;
+}
+.verdict h3{
+  margin:0 0 10px;font-family:var(--mono);font-size:10.5px;font-weight:500;
+  letter-spacing:.22em;text-transform:uppercase;color:var(--luminol);
+}
+.verdict p{margin:0;color:#CBD3E6;max-width:70ch;font-size:16px}
+.scoreline{
+  margin-top:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+}
+.pill{padding:6px 13px;border:1px solid var(--line);color:var(--muted)}
+.pill.good{color:var(--ok);border-color:rgba(61,196,141,.4);background:rgba(61,196,141,.08)}
+.pill.bad{color:var(--bad);border-color:rgba(226,86,77,.4);background:rgba(226,86,77,.08)}
+.pill.gold{color:var(--gold);border-color:var(--gold-deep);background:rgba(233,185,73,.08)}
+
+/* ------------------------------------------------------------ tables */
+table.board{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13.5px}
+table.board th{
+  text-align:left;font-weight:500;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted);padding:0 12px 10px;border-bottom:1px solid var(--line);
+}
+table.board td{padding:11px 12px;border-bottom:1px solid var(--line-soft);font-variant-numeric:tabular-nums}
+table.board tr:last-child td{border-bottom:0}
+table.board .rank{color:var(--muted);width:44px}
+table.board .who{font-family:var(--body);font-size:16px}
+table.board .pts{text-align:right;font-weight:600}
+table.board tr.top .rank,table.board tr.top .pts{color:var(--gold)}
+table.board tr.self{background:rgba(69,207,230,.07)}
+table.board tr.self .who::after{
+  content:'YOU';margin-left:9px;font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+  color:var(--luminol);vertical-align:2px;
+}
+
+/* ------------------------------------------------------------ forms */
+.gate{max-width:460px;margin:clamp(24px,7vh,74px) auto 0}
+.gate .card{padding:clamp(24px,4vw,36px)}
+.gate h2{
+  margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:30px;letter-spacing:.02em;
+}
+.gate p.sub{margin:0 0 22px;color:var(--muted);font-size:15px}
+label{
+  display:block;font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 7px;
+}
+.field{
+  width:100%;padding:12px 14px;background:var(--ink-2);color:var(--txt);
+  border:1px solid var(--line);border-radius:var(--r);margin-bottom:16px;font-size:16px;
+}
+.field:focus{border-color:var(--luminol);outline:none}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 22px;font-family:var(--mono);font-size:12px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;
+  background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#1A1204;
+  border-radius:var(--r);transition:filter .15s ease,transform .12s ease;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(1px)}
+.btn.full{width:100%}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--txt)}
+.btn.ghost:hover{border-color:var(--gold-deep);color:var(--gold)}
+.btn.danger{background:none;border:1px solid rgba(226,86,77,.45);color:var(--bad)}
+.btn:disabled{opacity:.38;cursor:not-allowed;filter:none;transform:none}
+.err{color:var(--bad);font-family:var(--mono);font-size:12px;margin:-6px 0 14px;min-height:18px}
+.linkrow{margin-top:18px;text-align:center}
+.linkrow a{color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;text-decoration:none;border-bottom:1px solid var(--line)}
+.linkrow a:hover{color:var(--gold);border-color:var(--gold-deep)}
+
+/* ------------------------------------------------------------ waiting */
+.hold{text-align:center;padding:clamp(30px,8vh,74px) 20px}
+.hold .glyph{
+  font-family:var(--display);font-size:clamp(46px,9vw,84px);font-weight:700;
+  color:var(--gold);letter-spacing:.08em;line-height:1;
+}
+.hold h2{margin:16px 0 8px;font-family:var(--display);font-weight:400;font-size:clamp(21px,3vw,29px);letter-spacing:.02em}
+.hold p{margin:0 auto;max-width:44ch;color:var(--muted)}
+.roster{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:26px}
+.tagname{
+  font-family:var(--mono);font-size:12px;padding:5px 12px;
+  border:1px solid var(--line-soft);color:#B4BFD8;background:rgba(16,26,46,.6);
+}
+
+/* ------------------------------------------------------------ host deck */
+.deck{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;
+  border-top:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(10,16,29,.97),rgba(7,11,22,.99));
+  backdrop-filter:blur(10px);
+}
+.deck-in{
+  max-width:1180px;margin:0 auto;padding:12px clamp(14px,4vw,32px);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.deck .sep{width:1px;height:26px;background:var(--line);margin:0 4px}
+.deck .meter{
+  display:flex;align-items:center;gap:9px;margin-left:auto;
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+}
+.meter .bar{width:110px;height:5px;background:var(--line-soft)}
+.meter .bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s ease}
+.btn.sm{padding:9px 15px;font-size:11px;letter-spacing:.13em}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
+@media(max-width:1000px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.side h4{
+  margin:0 0 12px;font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+}
+.tally{display:grid;gap:7px;margin-bottom:24px}
+.tally .row{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px}
+.tally .row b{width:14px;color:var(--muted);font-weight:500}
+.tally .row .bar{flex:1;height:16px;background:var(--line-soft);position:relative}
+.tally .row .bar i{display:block;height:100%;background:#3A4E7A;transition:width .3s ease}
+.tally .row.key .bar i{background:var(--ok)}
+.tally .row .n{width:22px;text-align:right;font-variant-numeric:tabular-nums}
+.tally .row.key b{color:var(--ok)}
+.qlist{max-height:320px;overflow:auto;border:1px solid var(--line-soft)}
+.qlist button{
+  display:flex;gap:10px;width:100%;padding:9px 12px;text-align:left;
+  font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  border-bottom:1px solid var(--line-soft);
+}
+.qlist button:last-child{border-bottom:0}
+.qlist button:hover{background:rgba(233,185,73,.08);color:var(--txt)}
+.qlist button.now{background:rgba(233,185,73,.14);color:var(--gold)}
+.qlist button i{font-style:normal;opacity:.6;width:16px;text-align:right}
+.qlist button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rosterlist{display:grid;gap:5px;max-height:260px;overflow:auto}
+.rosterlist .r{
+  display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;
+  padding:6px 10px;border:1px solid var(--line-soft);
+}
+.rosterlist .r .dot{width:7px;height:7px;border-radius:50%;background:var(--line);flex:none}
+.rosterlist .r.in .dot{background:var(--ok)}
+.rosterlist .r .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--body);font-size:14px}
+.rosterlist .r .sc{color:var(--muted);font-variant-numeric:tabular-nums}
+.rosterlist .r button{color:var(--muted);font-size:14px;line-height:1;padding:0 2px}
+.rosterlist .r button:hover{color:var(--bad)}
+.hostpad{padding-bottom:104px}
+
+.toast{
+  position:fixed;left:50%;bottom:96px;transform:translateX(-50%);
+  background:var(--panel-2);border:1px solid var(--line);color:var(--txt);
+  font-family:var(--mono);font-size:12px;padding:10px 18px;z-index:60;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="mark">
+    <b>Kaun Banega Detective</b>
+    <span id="markSub">Forensic Science Quiz</span>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main id="app" class="wrap"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ------------------------------------------------------------------ store
+ * The address decides the role: /host is the console, everything else is a
+ * player. Each role keeps its own session, so joining as a player never
+ * blocks the host login and both can be open in two tabs at once. */
+const ROLE = location.pathname.replace(/\/+$/,'') === '/host' ? 'host' : 'player';
+const KEY = ROLE === 'host' ? 'kbd_host_token' : 'kbd_player_token';
+localStorage.removeItem('kbd_token');   // retire the shared key used previously
+localStorage.removeItem('kbd_role');
+
+const LS = {
+  get t(){ return localStorage.getItem(KEY) || '' },
+  set t(v){ v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY) },
+  get name(){ return localStorage.getItem('kbd_name') || '' },
+  set name(v){ v ? localStorage.setItem('kbd_name', v) : localStorage.removeItem('kbd_name') }
+};
+function signOut(){ LS.t = ''; location.reload(); }
+
+let ST = null;            // latest server state
+let localDeadline = 0;    // ms epoch when the current question closes
+let frozenLeft = null;    // held value while the host has the timer paused
+let lastRound = -1;
+let pick = null;          // option index chosen this round, before it is locked
+let busy = false;
+let es = null;
+
+const app = document.getElementById('app');
+const chips = document.getElementById('chips');
+const toastEl = document.getElementById('toast');
+const LETTERS = ['A','B','C','D'];
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+let toastTimer;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('on'), 3200);
+}
+async function api(pathname, body){
+  let r;
+  try {
+    r = await fetch(pathname, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + LS.t },
+      body: JSON.stringify(body || {})
+    });
+  } catch (_) {
+    throw new Error('Cannot reach the server. Check that it is still running and that you opened the address it printed.');
+  }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Something went wrong. Try again.');
+  return data;
+}
+
+/* ------------------------------------------------------------------ stream */
+function connect(){
+  if (es) es.close();
+  es = new EventSource('/events?token=' + encodeURIComponent(LS.t));
+  es.addEventListener('state', (ev) => {
+    const s = JSON.parse(ev.data);
+    if (s.round !== lastRound){ lastRound = s.round; pick = null; }
+    if (s.phase === 'question'){
+      frozenLeft = s.paused ? s.timeLeftMs : null;
+      if (!s.paused) localDeadline = Date.now() + s.timeLeftMs;
+    } else {
+      frozenLeft = null;
+    }
+    ST = s;
+    render();
+  });
+  es.onerror = () => { /* EventSource reconnects on its own */ };
+}
+
+function msLeft(){
+  if (!ST || ST.phase !== 'question') return 0;
+  if (frozenLeft !== null) return frozenLeft;
+  return Math.max(0, localDeadline - Date.now());
+}
+function clock(ms){
+  const t = Math.ceil(ms / 1000);
+  return String(Math.floor(t / 60)).padStart(2,'0') + ':' + String(t % 60).padStart(2,'0');
+}
+
+/* --------------------------------------------------------------- rendering */
+function renderChips(){
+  if (!ST){ chips.innerHTML = ''; return; }
+  const bits = [];
+  if (ROLE === 'host') bits.push('<span class="chip live">Host Console</span>');
+  else if (ST.me) bits.push('<span class="chip"><b>' + esc(ST.me.name) + '</b></span>');
+  if (ST.me) bits.push('<span class="chip">Score <b>' + ST.me.score + '</b></span>');
+  bits.push('<span class="chip">Detectives <b>' + ST.playerCount + '</b>/' + ST.maxPlayers + '</span>');
+  if (ST.phase !== 'lobby') bits.push('<span class="chip">Case <b>' + (ST.qIndex+1) + '</b>/' + ST.totalQuestions + '</span>');
+  bits.push('<button class="chip" id="signout">' + (ROLE === 'host' ? 'Sign out' : 'Leave') + '</button>');
+  chips.innerHTML = bits.join('');
+  const so = document.getElementById('signout');
+  if (so) so.onclick = () => {
+    if (ROLE !== 'host' || confirm('Sign out of the host console?')) signOut();
+  };
+}
+
+function ladderHTML(){
+  if (!ST || !ST.question) return '';
+  const rows = [];
+  for (let i = ST.totalQuestions - 1; i >= 0; i--){
+    const cls = i === ST.qIndex ? 'now' : (i < ST.qIndex ? 'done' : '');
+    const label = ST.host ? ST.host.questionList[i].title : 'Case ' + (i+1);
+    rows.push('<div class="rung ' + cls + '"><i>' + (i+1) + '</i><span>' + esc(label) + '</span></div>');
+  }
+  return '<aside class="ladder"><h4>Case Ladder</h4>' + rows.join('') + '</aside>';
+}
+
+function questionHTML(){
+  const q = ST.question;
+  const revealed = ST.phase === 'reveal' || ST.phase === 'leaderboard' || ST.phase === 'finished';
+  const locked = ST.myAnswer !== null && ST.myAnswer !== undefined;
+  const closed = ST.phase !== 'question' || msLeft() <= 0;
+
+  const brief = q.brief.map(b => {
+    const quote = /[“"]/.test(b) && /:/.test(b.slice(0, 40));
+    return '<p class="brief' + (quote ? ' stmt' : '') + '">' + esc(b) + '</p>';
+  }).join('');
+
+  const opts = q.options.map((o, i) => {
+    let cls = '', flag = '';
+    if (revealed && q.answer !== undefined){
+      if (i === q.answer){ cls = 'right'; flag = 'Correct'; }
+      else if (i === ST.myAnswer){ cls = 'wrong'; flag = 'Your pick'; }
+      else if (ROLE === 'host' && i === ST.myAnswer){ cls = 'wrong'; }
+    } else if (ROLE === 'host' && ST.host && i === ST.host.answerKey){
+      cls = 'picked'; flag = 'Key';
+    } else if (locked && i === ST.myAnswer){
+      cls = 'picked'; flag = 'Locked';
+    } else if (pick === i){
+      cls = 'picked';
+    }
+    const dis = (ROLE === 'host' || locked || closed || revealed) ? ' disabled' : '';
+    return '<button class="opt ' + cls + '" data-i="' + i + '"' + dis + '>' +
+      '<span class="ltr">' + LETTERS[i] + '</span>' +
+      '<span class="txt">' + esc(o) + '</span>' +
+      (flag ? '<span class="flag">' + flag + '</span>' : '') +
+      '</button>';
+  }).join('');
+
+  let timer = '';
+  if (ST.phase === 'question'){
+    const left = msLeft();
+    const frac = Math.max(0, Math.min(1, left / ST.durationMs));
+    const cls = left <= 15000 ? 'crit' : (left <= 45000 ? 'warn' : '');
+    const note = ST.paused ? 'Timer held by host'
+      : (left <= 0 ? 'Time up — answers closed'
+      : (locked ? 'Answer locked in' : 'Choose one option'));
+    timer = '<div class="timer ' + cls + '" id="timer">' +
+      '<div class="digits">' + clock(left) + '</div>' +
+      '<div class="track"><i class="fill" style="width:' + (frac*100).toFixed(1) + '%"></i></div>' +
+      '<div class="note">' + note + '</div></div>';
+  }
+
+  let verdict = '';
+  if (revealed && q.reasoning){
+    let line = '';
+    if (ROLE !== 'host'){
+      if (ST.myLastResult && ST.myLastResult.correct)
+        line = '<div class="scoreline"><span class="pill good">Correct</span>' +
+               '<span class="pill gold">+' + ST.myLastResult.points + ' points</span></div>';
+      else if (ST.myAnswer !== null && ST.myAnswer !== undefined)
+        line = '<div class="scoreline"><span class="pill bad">Incorrect</span>' +
+               '<span class="pill">Correct answer: ' + LETTERS[q.answer] + '</span></div>';
+      else
+        line = '<div class="scoreline"><span class="pill">No answer submitted</span></div>';
+    }
+    verdict = '<div class="verdict"><h3>Forensic Reasoning</h3><p>' + esc(q.reasoning) + '</p>' + line + '</div>';
+  }
+
+  return '<section class="card">' +
+    '<div class="eyebrow"><span class="num">Case ' + String(q.number).padStart(2,'0') + '</span>' +
+      '<span class="tag">' + esc(q.tag) + '</span><span>' + q.number + ' of ' + q.total + '</span></div>' +
+    '<h1 class="case">' + esc(q.title) + '</h1>' + brief +
+    (q.image ? '<figure class="scene"><img src="' + esc(q.image) + '" alt="Crime scene photograph for case ' + q.number + '"></figure>' : '') +
+    '<p class="prompt">' + esc(q.prompt) + '</p>' +
+    '<div class="opts" id="opts">' + opts + '</div>' + timer + verdict +
+    '</section>';
+}
+
+function boardHTML(title){
+  const rows = ST.leaderboard.map((p, i) => {
+    const cls = (i < 3 ? 'top ' : '') + (ST.me && p.id === ST.me.id ? 'self' : '');
+    return '<tr class="' + cls + '"><td class="rank">' + String(i+1).padStart(2,'0') + '</td>' +
+      '<td class="who">' + esc(p.name) + '</td>' +
+      '<td>' + p.correct + '/' + ST.totalQuestions + '</td>' +
+      '<td class="pts">' + p.score + '</td></tr>';
+  }).join('');
+  return '<section class="card">' +
+    '<div class="eyebrow"><span class="num">' + esc(title) + '</span><span>' + ST.leaderboard.length + ' detectives</span></div>' +
+    (rows
+      ? '<table class="board"><thead><tr><th class="rank">#</th><th>Detective</th><th>Correct</th><th class="pts">Points</th></tr></thead><tbody>' + rows + '</tbody></table>'
+      : '<p class="brief">No scores recorded yet.</p>') +
+    '</section>';
+}
+
+function holdHTML(){
+  const names = ST.leaderboard.map(p => '<span class="tagname">' + esc(p.name) + '</span>').join('');
+  return '<section class="card hold">' +
+    '<div class="glyph">?</div>' +
+    '<h2>Case file sealed</h2>' +
+    '<p>Your screen will open the moment the host releases the first case. Keep this tab open.</p>' +
+    (names ? '<div class="roster">' + names + '</div>' : '') +
+    '</section>';
+}
+
+/* ------------------------------------------------------------- host deck */
+function deckHTML(){
+  const inQ = ST.phase === 'question';
+  const b = (act, label, cls, attr) =>
+    '<button class="btn sm ' + (cls||'ghost') + '" data-act="' + act + '"' + (attr||'') + '>' + label + '</button>';
+  const parts = [];
+
+  if (ST.phase === 'lobby') parts.push(b('start','Start Game',''));
+  else {
+    parts.push(b('previous','&#8592; Prev'));
+    if (inQ) parts.push(b('reveal','Reveal Answer',''));
+    parts.push(b('next','Next &#8594;'));
+    parts.push('<span class="sep"></span>');
+    if (inQ) parts.push(b(ST.paused ? 'resume' : 'pause', ST.paused ? 'Resume' : 'Hold'));
+    if (inQ) parts.push(b('addtime','+30s'));
+    parts.push(b('leaderboard','Leaderboard'));
+    parts.push(b('finish','End Game'));
+  }
+  parts.push('<span class="sep"></span>');
+  parts.push(b('reset','Reset','danger'));
+
+  const answered = ST.host ? ST.host.answered : 0;
+  const pct = ST.playerCount ? (answered / ST.playerCount) * 100 : 0;
+  const meter = '<div class="meter">Answered <div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div>' +
+    '<b style="color:var(--txt)">' + answered + '/' + ST.playerCount + '</b>' +
+    (inQ ? '<span style="margin-left:14px;color:var(--txt);font-size:15px">' + clock(msLeft()) + '</span>' : '') +
+    '</div>';
+
+  return '<div class="deck"><div class="deck-in">' + parts.join('') + meter + '</div></div>';
+}
+
+function hostSideHTML(){
+  const h = ST.host;
+  const tally = [0,1,2,3].map(i => {
+    const n = h.tally[i];
+    const pct = ST.playerCount ? (n / ST.playerCount) * 100 : 0;
+    const isKey = ST.phase !== 'lobby' && i === h.answerKey;
+    return '<div class="row' + (isKey ? ' key' : '') + '"><b>' + LETTERS[i] + '</b>' +
+      '<div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div><span class="n">' + n + '</span></div>';
+  }).join('');
+
+  const qlist = h.questionList.map((q, i) =>
+    '<button data-jump="' + i + '" class="' + (i === ST.qIndex && ST.phase !== 'lobby' ? 'now' : '') + '">' +
+    '<i>' + q.number + '</i><span>' + esc(q.title) + '</span></button>').join('');
+
+  const roster = h.roster.length
+    ? h.roster.map(p =>
+        '<div class="r' + (p.answered ? ' in' : '') + '"><span class="dot"></span>' +
+        '<span class="nm">' + esc(p.name) + '</span><span class="sc">' + p.score + '</span>' +
+        '<button data-kick="' + p.id + '" title="Remove ' + esc(p.name) + '">&times;</button></div>').join('')
+    : '<p class="brief" style="font-size:14px;color:var(--muted)">Nobody has joined yet.</p>';
+
+  return '<aside class="side">' +
+    '<h4>Live Responses</h4><div class="tally">' + tally + '</div>' +
+    '<h4>Jump to Case</h4><div class="qlist">' + qlist + '</div>' +
+    '<h4 style="margin-top:24px">Detectives (' + h.roster.length + ')</h4><div class="rosterlist">' + roster + '</div>' +
+    '</aside>';
+}
+
+/* ---------------------------------------------------------------- screens */
+function joinScreen(err){
+  document.getElementById('markSub').textContent = 'Forensic Science Quiz';
+  app.innerHTML =
+    '<div class="gate"><div class="card">' +
+      '<h2>Enter the room</h2>' +
+      '<p class="sub">Sign in with your name. The host controls every case from the console.</p>' +
+      '<label for="nm">Detective name</label>' +
+      '<input class="field" id="nm" maxlength="28" autocomplete="name" placeholder="Your full name" value="' + esc(LS.name) + '">' +
+      '<div class="err">' + esc(err || '') + '</div>' +
+      '<button class="btn full" id="go">Join the game</button>' +
+      '<div class="linkrow"><a href="/host">Host login</a></div>' +
+    '</div></div>';
+  const nm = document.getElementById('nm');
+  nm.focus();
+  const submit = async () => {
+    const name = nm.value.trim();
+    try {
+      const r = await api('/api/join', { name });
+      LS.t = r.token; LS.name = r.player.name;
+      connect();
+    } catch (e) { joinScreen(e.message); }
+  };
+  document.getElementById('go').onclick = submit;
+  nm.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+}
+
+function hostScreen(err){
+  document.getElementById('markSub').textContent = 'Host Console';
+  app.innerHTML =
+    '<div class="gate"><div class="card">' +
+      '<h2>Host console</h2>' +
+      '<p class="sub">Restricted. Only the quiz master signs in here.</p>' +
+      '<label for="hid">Host ID</label><input class="field" id="hid" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false">' +
+      '<label for="hpw">Password</label><input class="field" id="hpw" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">' +
+      '<div class="err">' + esc(err || '') + '</div>' +
+      '<button class="btn full" id="hgo">Open console</button>' +
+      '<div class="linkrow"><a href="/">Join as a player</a></div>' +
+    '</div></div>';
+  const id = document.getElementById('hid'), pw = document.getElementById('hpw');
+  id.focus();
+  const submit = async () => {
+    try {
+      const r = await api('/api/host/login', { id: id.value.trim(), pass: pw.value.trim() });
+      LS.t = r.token;
+      connect();
+    } catch (e) { hostScreen(e.message); }
+  };
+  document.getElementById('hgo').onclick = submit;
+  pw.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+}
+
+function render(){
+  if (!ST) return;
+  renderChips();
+  document.getElementById('markSub').textContent =
+    ROLE === 'host' ? 'Host Console' : 'Forensic Science Quiz';
+
+  let main;
+  if (ST.phase === 'lobby')            main = ROLE === 'host' ? boardHTML('Lobby') : holdHTML();
+  else if (ST.phase === 'leaderboard') main = boardHTML('Standings');
+  else if (ST.phase === 'finished')    main = boardHTML('Final Verdict');
+  else                                 main = questionHTML();
+
+  if (ROLE === 'host'){
+    app.className = 'wrap hostpad';
+    app.innerHTML = '<div class="grid2">' + main + hostSideHTML() + '</div>' + deckHTML();
+  } else {
+    app.className = 'wrap';
+    app.innerHTML = '<div class="stage">' + main + ladderHTML() + '</div>';
+  }
+  wire();
+}
+
+function wire(){
+  const opts = document.getElementById('opts');
+  if (opts && ROLE === 'player'){
+    opts.querySelectorAll('.opt').forEach(btn => {
+      btn.onclick = async () => {
+        if (busy) return;
+        const i = Number(btn.dataset.i);
+        pick = i;
+        render();
+        busy = true;
+        try { await api('/api/answer', { choice: i }); }
+        catch (e) { pick = null; toast(e.message); render(); }
+        finally { busy = false; }
+      };
+    });
+  }
+  document.querySelectorAll('[data-act]').forEach(btn => {
+    btn.onclick = async () => {
+      const act = btn.dataset.act;
+      if (act === 'reset' && !confirm('Reset the game? All scores are cleared and everyone returns to the lobby.')) return;
+      try { await api('/api/host/' + act, act === 'addtime' ? { seconds: 30 } : {}); }
+      catch (e) { toast(e.message); }
+    };
+  });
+  document.querySelectorAll('[data-jump]').forEach(btn => {
+    btn.onclick = () => api('/api/host/show', { index: Number(btn.dataset.jump) }).catch(e => toast(e.message));
+  });
+  document.querySelectorAll('[data-kick]').forEach(btn => {
+    btn.onclick = () => {
+      if (confirm('Remove this player from the game?'))
+        api('/api/host/kick', { playerId: btn.dataset.kick }).catch(e => toast(e.message));
+    };
+  });
+}
+
+/* Tick the countdown without re-rendering the whole screen. */
+setInterval(() => {
+  if (!ST || ST.phase !== 'question') return;
+  const left = msLeft();
+  const t = document.getElementById('timer');
+  if (t){
+    t.querySelector('.digits').textContent = clock(left);
+    t.querySelector('.fill').style.width = Math.max(0, Math.min(100, (left / ST.durationMs) * 100)).toFixed(1) + '%';
+    t.classList.toggle('warn', left <= 45000 && left > 15000);
+    t.classList.toggle('crit', left <= 15000);
+    if (left <= 0 && !ST.paused && !t.dataset.done){
+      t.dataset.done = '1';
+      t.querySelector('.note').textContent = 'Time up — answers closed';
+      render();
+    }
+  }
+  const m = document.querySelector('.meter span');
+  if (m && ROLE === 'host') m.textContent = clock(left);
+}, 250);
+
+/* -------------------------------------------------------------- bootstrap */
+const gate = () => (ROLE === 'host' ? hostScreen() : joinScreen());
+
+if (LS.t){
+  connect();
+  // A token left over from a restarted server falls back to the right gate.
+  setTimeout(() => {
+    if (!ST || (ROLE === 'player' && !ST.me) || (ROLE === 'host' && !ST.host)){
+      LS.t = '';
+      gate();
+    }
+  }, 2500);
+} else {
+  gate();
+}
+</script>
+</body>
+</html>
